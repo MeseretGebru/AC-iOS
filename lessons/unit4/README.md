@@ -1,114 +1,218 @@
-# Standards
 
-* Understand the role of caching in mobile applications using ```URLCache```
+# Unit 4
 
-# Objectives
+### Key Lesson Links
 
-* Gain more understanding of the HTTP protocol, specifically headers
-* Understand how the ```Cache-control``` and related headers influence client side caching
-* Learn how to test when caching is part of a system
+- [UserDefaults](https://github.com/C4Q/AC-iOS/blob/master/lessons/unit4/UserDefaults/README.md)
+- [Collection Views](https://github.com/C4Q/AC-iOS/blob/master/lessons/unit4/CollectionViews/README.md)
+- [Persistence with NSKeyedArchiver / Codable](https://github.com/C4Q/AC-iOS/blob/master/lessons/unit4/Persistence-NSKeyedArchiver-Codable/README.md)
+- [Custom Delegation / NSCache](https://github.com/C4Q/AC-iOS/blob/master/lessons/unit4/Protocols-Delegation-NSCache/README.md)
+- [UIImagePickerController](https://github.com/C4Q/AC-iOS/blob/master/lessons/unit4/ImagePicker/README.mdown)
+- [Subclassing UIViews and Nibs (Xibs)](https://github.com/C4Q/AC-iOS/blob/master/lessons/unit4/SubclassingUIViewsAndNibs(Xibs)/README.md)  
+- [Intro to Programmatic View Layout](https://github.com/C4Q/AC-iOS/tree/master/lessons/unit4/IntroductionToProgrammaticUI)  
+- [Programmable View Management Continued](https://github.com/C4Q/AC-iOS/tree/master/lessons/unit4/Programmatic-View-Management)  
+- [UIKit Animation](https://github.com/C4Q/AC-iOS/tree/master/lessons/unit4/Animations)  
+- [Core Animation](https://github.com/C4Q/AC-iOS/blob/master/lessons/unit4/Animations/CoreAnimation.md)  
+- [Debugging Workshop](https://github.com/C4Q/AC-iOS/blob/master/lessons/unit4/Debugging%20Workshop.md)  
 
-# Resources
 
-1. [NSURLCache - NSHipster](http://nshipster.com/nsurlcache/)
-2. [URLCache - Apple Doc](https://developer.apple.com/reference/foundation/urlcache)
-3. [HTTP Headers](https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html)
-4. [HTTP Caching](RFC 2616, Section 13 (http://www.w3.org/Protocols/rfc2616/rfc2616-sec13.html#sec13)
-5. [Apple's URL Loading Guide](https://developer.apple.com/library/content/documentation/Cocoa/Conceptual/URLLoadingSystem/URLLoadingSystem.html#//apple_ref/doc/uid/10000165-BCICJDHA)
+### Helpful Classes/Methods:
 
-# Lesson
+<details>
+<summary>Get the URL to the Documents Directory</summary>
 
-## Terms
+```swift 
+// returns documents directory path for app sandbox
+func documentsDirectory() -> URL {
+    let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+    return paths[0]
+}
+```
 
-HTTP
-    Status codes: 200, 304, 404
-Cache
-Client
-Server
-Header
+</details>
 
-## Why caching? 
+<details>
+<summary>Returns the URL for a file path in the Documents Directory</summary>
 
-We're coming at this subject from a higher level than we've usually been doing. So far, we've mainly focused
-on getting specific stuff done and having a good deal of, if not complete, control over what we're doing.
-Here, we're exploring how an external protocol (HTTP) on the server we're interacting with will affect our 
-app's behavior. We'll also be looking at ways to override this behavior. 
+```swift
+// /documents/Favorites.plist
+// returns the path for supplied name from the dcouments directory
+func dataFilePath(withPathName path: String) -> URL {
+    return PersistenceDatastore.manager.documentsDirectory().appendingPathComponent(path)
+}
+```
 
-The take away from this is a different kind of tool in your tool box. You will be able to advise
-the teams you're on of what caching can provide, and how to figure it out based on the app requirements.
+</details>
 
-Our most immediate opportunity to play more than a reactive role in the process will be when we 
-work on a cross-cohort project with the 3.1 (Full Stack Web) class, either during regular class time, 
-at a hackathon or both.
 
-## Cache Use Semantics for the HTTP Protocol
+<details>
+<summary>Save Object(s) using <a href="https://developer.apple.com/documentation/foundation/propertylistencoder">PropertyListEncoder</a></summary>
 
-> From [Apple's Session Programming Guide](https://developer.apple.com/library/content/documentation/Cocoa/Conceptual/URLLoadingSystem/Concepts/CachePolicies.html)
-> The most complicated cache use situation is when a request uses the HTTP protocol and has set the cache policy to 
-> NSURLRequestUseProtocolCachePolicy.
-> 
-> If an NSCachedURLResponse does not exist for the request, then the URL loading system fetches the data from the 
-> originating source.
-> 
-> If a cached response exists for the request, the URL loading system checks the response to determine if it 
-> specifies that the contents must be revalidated.
-> 
-> If the contents must be revalidated, the URL loading system makes a HEAD request to the originating source
-> to see if the  resource has changed. If it has not changed, then the URL loading system returns the cached
-> response. If it has changed, the URL loading system fetches the data from the originating source.
-> 
-> If the cached response doesn’t specify that the contents must be revalidated, the URL loading system 
-> examines the maximum  age or expiration specified in the cached response. If the cached response is 
-> recent enough, then the URL loading system  returns the cached response. If the response is stale, 
-> the URL loading system makes a HEAD request to the originating  source to determine whether the 
-> resource has changed. If so, the URL loading system fetches the resource from the  originating source.
-> Otherwise, it returned the cached response.
+```swift 
+// save to documents directory
+// write to path: /Documents/
+func saveToDisk() {
+    let encoder = PropertyListEncoder()
+    do {
+        let data = try encoder.encode(favorites)
+        // Does the writing to disk
+        try data.write(to: dataFilePath(withPathName: PersistenceDatastore.filename), options: .atomic)
+    } catch {
+        print("encoding error: \(error.localizedDescription)")
+    }
+}
+```
 
-## Testing techniques
+</details>
 
-* Postman
+<details>
+<summary>Load Object(s) from the Documents Directory using <a href="https://developer.apple.com/documentation/foundation/propertylistencoder">PropertyListEncoder</a>PropertyListDecoder</summary>
+
+```swift 
+// load from documents directory
+func load() {
+    // what's the path we are reading from? - PersistenceDatastore.filename
+    let path = dataFilePath(withPathName: PersistenceDatastore.filename)
+    let decoder = PropertyListDecoder()
+    do {
+        let data = try Data.init(contentsOf: path)
+        favorites = try decoder.decode([Favorite].self, from: data)
+    } catch {
+        print("decoding error: \(error.localizedDescription)")
+    }
+}
+```
+
+</details>
+
+<details>
+    <summary>ImageCache using <a href="https://developer.apple.com/documentation/foundation/nscache">NSCache</a></summary>
+
+```swift
+class ImageCache {
+    private init(){}
+    static let manager = ImageCache()
     
-    Use Postman or any browser-based diagnostic tool that allows you to run HTTP requests
-    and inspect the headers. Look for ```Cache-Control``` and ```Last-Modified``` headers.
-
-* Delete the app
-
-    This guarantees that all cached data is deleted and is an important use/edge case: what is 
-    the initial behavior of the app. Can also serve as a quick and dirty sanity check when 
-    previously unknown or unconsidered caching is suspected.
-
-* Diagnostics in the code
-    As with Postman, look for ```Cache-Control``` and ```Last-Modified``` headers in your code.
-
-    ```swift
-    if let cachedResponse = URLCache.shared.cachedResponse(for: request)?.response as? HTTPURLResponse {
-        print("URL \(myURL) FOUND IN CACHE")
-        if let cacheControl = cachedResponse.allHeaderFields["Cache-Control"] as? String {
-            print("Cache-Control: \(cacheControl)")
-        }
-        
-        // this will have elicit a 304 status code
-        if let lastModified = cachedResponse.allHeaderFields["Last-Modified"] as? String {
-            print("Last-Modified: \(lastModified)")
-            
-            request.setValue(lastModified, forHTTPHeaderField: "If-Modified-Since")
+    private let sharedCached = NSCache<NSString, UIImage>()
+    
+    // get current cached image
+    func cachedImage(url: URL) -> UIImage? {
+        return sharedCached.object(forKey: url.absoluteString as NSString)
+    }
+    
+    // process image and store in cache
+    func processImageInBackground(imageURL: URL, completion: @escaping(Error?, UIImage?) -> Void) {
+        DispatchQueue.global().async {
+            do {
+                let imageData = try Data.init(contentsOf: imageURL)
+                let image  = UIImage.init(data: imageData)
+                
+                // store image in cache
+                if let image = image {
+                    self.sharedCached.setObject(image, forKey: imageURL.absoluteString as NSString)
+                }
+                
+                completion(nil, image)
+            } catch {
+                print("image processing error: \(error.localizedDescription)")
+                completion(error, nil)
+            }
         }
     }
-    ```
+}
+```
 
-* Turn the network off and on
-    
-    This is a good way to see what's currently cached and to test other cache policies that
-    don't load from cache.
+</details>
 
-* Network Traffic / Packet Sniffers
-    * [Charles Proxy](https://www.charlesproxy.com)
-    You have to jump through some extra hoops to get SSL to work.
-    https://www.charlesproxy.com/documentation/faqs/ssl-connections-from-within-iphone-applications/
+<details>
+<summary>Using <a href="">https://developer.apple.com/documentation/quartzcore/caanimationgroup</a> to animate the shadowOpacity and shadowOffset of a layer</summary>
 
-## Exercise
+```swift 
+func animateShadow() {
+    // animate shadowOpacity
+    // default opacity is 0
+    let opacityAnimation = CABasicAnimation(keyPath: "shadowOpacity")
+    opacityAnimation.fromValue = 0 // minimum value
+    opacityAnimation.toValue = 1 // maximum value
 
-1. Using Postman, let's go through previous API projects and look for ```Cache-Control``` and
- ```Last-Modified``` headers in JSON and image requests. Put the results in [this spreadsheet](https://docs.google.com/spreadsheets/d/1Na7V3h6LFg-n4HWyp7JzGTiCnrQu1cQ15-8ebgz-rUA/edit#gid=0).
+    // final value is not on by default
+    // you have to explicity set the final value if you need it to stick
+    imageView.layer.shadowOpacity = 1
 
-2. Experiment with changing the caching behavior within the app.
+
+    // animate the shadow offset
+    // default is CGSize.zero
+    let offsetAnimation = CABasicAnimation(keyPath: "shadowOffset")
+    offsetAnimation.fromValue = CGSize.zero
+    offsetAnimation.toValue = CGSize(width: 5.0, height: 5.0)
+    imageView.layer.shadowOffset = CGSize(width: 5.0, height: 5.0)
+
+    // create group animation for shadow animation
+    let groupAnimation = CAAnimationGroup()
+    groupAnimation.animations = [opacityAnimation, offsetAnimation]
+    groupAnimation.duration = 1.0 
+    imageView.layer.add(groupAnimation, forKey: nil)
+}
+```
+
+</details>
+
+<details>
+<summary>Using <a href="https://developer.apple.com/documentation/quartzcore/cabasicanimation">CABasicAnimation</a> to animate a rotation in the 3D plane</summary>
+
+```swift 
+func animateRotationX() {
+    let animation = CABasicAnimation(keyPath: "transform.rotation.x")
+    let angleRadian = CGFloat(2.0 * .pi) // 360
+    animation.fromValue = 0 // degrees
+    animation.byValue = angleRadian
+    animation.duration = 5.0 // seconds
+    animation.repeatCount = Float.infinity
+    imageView.layer.add(animation, forKey: nil)
+}
+```
+
+</details>
+
+<details>
+<summary>3D Translation using <a href="">CAKeyframeAnimation</a></summary>
+
+```swift 
+// 3D Translation using CAKeyframeAnimation
+func animateTranslation() {
+    let toTopLeft = CATransform3DMakeTranslation(-view.layer.position.x, -view.layer.position.y, 0)     // top left
+    let toBottomRight = CATransform3DMakeTranslation(view.layer.position.x, view.layer.position.y, 0)   // bottom right
+    let toTopRight = CATransform3DMakeTranslation(view.layer.position.x, -view.layer.position.y, 0)     // top right
+    let toBottomLeft = CATransform3DMakeTranslation(-view.layer.position.x, view.layer.position.y, 0)   // bottom left
+    let keyframeAnimation = CAKeyframeAnimation(keyPath: "transform")
+    keyframeAnimation.timingFunction = CAMediaTimingFunction(name: kCAMediaTimingFunctionEaseInEaseOut)
+    keyframeAnimation.values = [CATransform3DIdentity,
+                                toTopLeft,
+                                CATransform3DIdentity,
+                                toTopRight,
+                                CATransform3DIdentity,
+                                toBottomLeft,
+                                CATransform3DIdentity,
+                                toBottomRight,
+                                CATransform3DIdentity]
+    keyframeAnimation.duration = 4.0
+    keyframeAnimation.repeatCount = Float.infinity
+    imageView.layer.add(keyframeAnimation, forKey: nil)
+}
+```
+
+</details>
+
+
+### Key Projects
+
+| Name | Tags |
+| --- | --- |
+|[Persistence using Codable](https://github.com/C4Q/AC-iOS-Persistence-Codable)| Persitence/Codable/FileManager|
+|[MovieSearch](https://github.com/C4Q/AC-iOS-MovieSearch-CollectionViews-FileManager)| Persistence/Codable/FileManager|
+|[Custom Delegation and Image Caching](https://github.com/C4Q/AC-iOS-CatOrDog-Delegation) | Delegation/NSCache |
+|[Nib Demo](https://github.com/C4Q/AC-iOS-NibDemo)|Custom Nibs|
+|[Fellows](https://github.com/C4Q/AC-iOS-Fellows)|Programmable View Management|  
+|[Collection View Introduction Project with MTG Cards](https://github.com/C4Q/AC-iOS-CollectionViews-Introduction)|Collection Views|
+|[Core Animation Demo App](https://github.com/C4Q/AC-iOS-CoreAnimationApp)| CoreAnimation|
+|[Master Persistence Review](https://github.com/C4Q/AC-iOS-PersistenceReview) | FileManager/UserDefaults/NSCache/URLCache |
